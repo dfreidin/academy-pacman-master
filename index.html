@@ -59,35 +59,23 @@
   <div id="score"></div>
 </body>
 <script type="text/javascript">
-  var startingWorld = [   // basic 20x20 world with empty starting spot @ (1,1)
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-  ]
-  var world = startingWorld;
+  var width=20, height=20;  // size of play area, minimum of 3x3
+  var startingWorld = [];
+  for(var i=0; i<height; i++){  // create a world of walls
+    startingWorld[i] = [];
+    for(var j=0; j<width; j++){
+      startingWorld[i][j] = 1;
+    }
+  }
+  startingWorld[1][1] = 0;  // empty starting space for NinjaMan
+  var world = startingWorld.slice().map(function(row){return row.slice()});
   var worldDict = {
     0: 'blank',
     1: 'wall',
     2: 'sushi',
     3: 'onigiri'
   }
+  var worldScore = 0;   // % of world which is playable, not counting border wall
 
   function genWorld(){
     for(var i=0; i<world.length; i++){
@@ -103,9 +91,19 @@
     world[1][1] = 0;  // always start in empty spot
   }
 
-/*  function propegateCheck(arr){
-    for(var i=0; i<arr.length; i++){
+  function propegateCheck(arr){
+    for(var i=0; i<arr.length; i++){  // check left-right, top-bottom
       for(var j=0; j<arr[i].length; j++){
+        if(arr[i][j] != 1){
+          arr[i-1][j] = world[i-1][j];
+          arr[i+1][j] = world[i+1][j];
+          arr[i][j-1] = world[i][j-1];
+          arr[i][j+1] = world[i][j+1];
+        }
+      }
+    }
+    for(i=arr.length-1; i>=0; i--){  // check right-left, bottom-top
+      for(j=arr[i].length-1; j>=0; j--){
         if(arr[i][j] != 1){
           arr[i-1][j] = world[i-1][j];
           arr[i+1][j] = world[i+1][j];
@@ -118,12 +116,20 @@
   }
 
   function checkWorld(){
-    var tempWorld = startingWorld;
-    for(var i=0; i<1; i++){   // 3 times seems sufficient from testing
+    var tempWorld = startingWorld.slice().map(function(row){return row.slice()});
+    for(var i=0; i<2; i++){   // once is insufficient for certain complex worlds
       tempWorld = propegateCheck(tempWorld);
     }
     world = tempWorld;
-  }*/
+    for(i=0; i<world.length; i++){
+      for(var j=0; j<world[i].length; j++){
+        if(world[i][j] != 1){
+          worldScore++;
+        }
+      }
+    }
+    worldScore /= (world.length-2) * (world[0].length-2);
+  }
 
   function drawWorld(){
     output = "";
@@ -185,10 +191,12 @@
     drawWorld();
   }
 
-  while(world[1][2] == 1 && world[2][1] == 1){  // no isolated starting point
-    genWorld();
+  while(worldScore < 0.5){  // don't have too many walls
+    while(world[1][2] == 1 && world[2][1] == 1){  // no isolated starting point
+      genWorld();
+    }
+    checkWorld();
   }
-//  checkWorld();
   drawWorld();
   drawNinjaman();
 
