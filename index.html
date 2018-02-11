@@ -46,8 +46,20 @@
         background-size: contain;
         position: absolute;
       }
+      .ghost {
+        height: 40px;
+        width: 40px;
+        display: inline-block;
+        background-size: contain;
+        position: absolute;
+      }
       #score {
         background-color: lightgreen;
+        height: 40px;
+        font-size: 30;
+      }
+      #lives {
+        background-color: tomato;
         height: 40px;
         font-size: 30;
       }
@@ -56,7 +68,9 @@
 <body>
   <div id="world"></div>
   <div id="ninjaman"></div>
+  <div id="ghosts"></div>
   <div id="score"></div>
+  <div id="lives"></div>
 </body>
 <script type="text/javascript">
   var width=20, height=20;  // size of play area, minimum of 3x3
@@ -76,6 +90,18 @@
     3: 'onigiri'
   }
   var worldScore = 0;   // % of world which is playable, not counting border wall
+  var ninjaman = {
+    row: 1,
+    col: 1,
+    score: 0,
+    lives: 3
+  }
+  var ghosts = [
+    {image: "bluey.gif", top: 0, left: 0},
+    {image: "pinky.gif", top: 0, left: 1},
+    {image: "pumpky.gif", top: 0, left: 2},
+    {image: "red.gif", top: 0, left: 3},
+  ]
 
   function genWorld(){
     for(var i=0; i<world.length; i++){
@@ -145,10 +171,20 @@
     document.getElementById("score").innerHTML = "Score: " + ninjaman.score;
   }
 
-  var ninjaman = {
-    row: 1,
-    col: 1,
-    score: 0
+  function placeGhosts(){
+    ghosts[0].top = Math.floor(Math.random() * height / 2) + 1  // top half ignoring outer wall
+    ghosts[0].left = width - Math.floor(Math.random() * width / 2) - 2  // right half ignoring outer wall
+    ghosts[1].top = height - Math.floor(Math.random() * height / 2) - 2  // bottom half ignoring outer wall
+    ghosts[1].left = Math.floor(Math.random() * width / 2) + 1  // left half ignoring outer wall
+    ghosts[2].top = height - Math.floor(Math.random() * height / 2) - 2  // bottom half ignoring outer wall
+    ghosts[2].left = width - Math.floor(Math.random() * width / 2) - 2  // right half ignoring outer wall
+    ghosts[3].top = height - Math.floor(Math.random() * height / 2) - 2  // bottom half ignoring outer wall
+    ghosts[3].left = width - Math.floor(Math.random() * width / 2) - 2  // right half ignoring outer wall
+    for(var i=0; i<ghosts.length; i++) {
+      if(world[ghosts[i].top][ghosts[i].left] == 1) {
+        world[ghosts[i].top][ghosts[i].left] = 0;   // get rid of wall under ghosts
+      }
+    }
   }
 
   function moveHor(dir){
@@ -165,6 +201,52 @@
   function drawNinjaman(){
     document.getElementById("ninjaman").style.top = (40*ninjaman.row) + "px"
     document.getElementById("ninjaman").style.left = (40*ninjaman.col) + "px"
+  }
+
+  function drawGhosts() {
+    var output = "";
+    var style = "";
+    for(var i=0; i<ghosts.length; i++) {
+      style = 'background-image: url("img/'+ghosts[i].image+'"); top: '+(40*ghosts[i].top)+'; left: '+(40*ghosts[i].left)
+      output += "<div class='ghost' style='"+style+"'></div>"
+    }
+    document.getElementById("ghosts").innerHTML = output;
+  }
+
+  function ghostDirection(ghost) {  // 0=up, 1=left, 2=down, 3=right
+    var vertical = ghosts[ghost].top - ninjaman.row;
+    var horizontal = ghosts[ghost].left - ninjaman.col;
+    var dirs = [vertical, horizontal, vertical * -1, horizontal * -1];
+    var sum = 0;
+    for(var i=0; i<4; i++) {
+      if(dirs[i] < 0) {
+        dirs[i] = 0;
+      }
+      sum += dirs[i];
+    }
+    var rand_dir = Math.ceil(Math.random() * sum);   // weighted randomness
+    for(var i=0; i<4; i++) {
+      if(rand_dir < dirs[i]) {
+        return i;
+      }
+      rand_dir -= dirs[i];
+    }
+    return 0;   // shouldn't matter, but just in case
+  }
+
+  function moveGhost(ghost, dir) {  // 0=up, 1=left, 2=down, 3=right
+    if(dir == 0 || dir == 2) {
+      dir -= 1;   // adjust dir and use code from ninjaman movement
+      if(world[ghosts[ghost].top+dir][ghosts[ghost].left] != 1){
+        ghosts[ghost].top += dir;
+      }
+    }
+    if(dir == 1 || dir == 3) {
+      dir -= 2;
+      if(world[ghosts[ghost].top][ghosts[ghost].left+dir] != 1){
+        ghosts[ghost].left += dir;
+      }
+    }
   }
 
   document.onkeydown = function(e){
@@ -191,14 +273,44 @@
     drawWorld();
   }
 
+  function clearWorld() {
+    for(var i=1; i<height-1; i++) {
+      for(var j=1; j<width-1; j++) {
+        world[i][j] = 0;
+      }
+    }
+  }
+
+  function gameLoop() {
+    for(var i=0; i<ghosts.length; i++) {
+      moveGhost(i,ghostDirection(i));
+      if(ghosts[i].top == ninjaman.row && ghosts[i].left == ninjaman.col) {
+        // collision checking
+        ninjaman.lives -= 1;
+      }
+    }
+    drawGhosts();
+    document.getElementById("lives").style.width = world[0].length * 40 + "px";
+    document.getElementById("lives").innerHTML = "Lives: " + ninjaman.lives;
+    if(ninjaman.lives <= 0) {
+      clearWorld();
+      drawWorld();
+      return;
+    }
+    setTimeout(gameLoop, 500);
+  }
+
   while(worldScore < 0.5){  // don't have too many walls
     while(world[1][2] == 1 && world[2][1] == 1){  // no isolated starting point
       genWorld();
     }
     checkWorld();
   }
+  placeGhosts();
   drawWorld();
   drawNinjaman();
+  drawGhosts();
+  gameLoop();
 
 </script>
 </html>
